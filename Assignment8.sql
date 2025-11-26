@@ -1,94 +1,76 @@
--- Step 1: Create base table
+CREATE DATABASE IF NOT EXISTS Student_Cursors;
+USE Student_Cursors;
 
-CREATE TABLE Employees (
-emp id NUMBER PRIMARY KEY,
+DROP TABLE IF EXISTS student;
 
-emp name VARCHAR2(50),
-
-salary NUMBER(10.2).
-
-dept id NUMBER
+CREATE TABLE student (
+    roll_no INT PRIMARY KEY,
+    name VARCHAR(50),
+    marks INT
 );
 
+INSERT INTO student VALUES
+(1, 'Manish', 85),
+(2, 'Meet', 92),
+(3, 'Amit', 76),
+(4, 'Stimit', 89),
+(5, 'Pranay', 67);
 
+DROP PROCEDURE IF EXISTS demo_cursors;
 
--- Insert sample data
+DELIMITER $$
 
-INSERT INTO Employees VALUES (1, 'Amit', 50000, 10);
-
-INSERT INTO Employees VALUES (2, 'Priya', 60000, 20);
-
-INSERT INTO Employees VALUES (3, 'Rahul', 45000, 10);
-
-INSERT INTO Employees VALUES (4, 'Neha', 70000, 30);
-
-INSERT INTO Employees VALUES (5,'Vikram', 55000, 20);
--- COMMIT:
-
--- A) IMPLICIT CURSOR
-SET SERVEROUTPUT ON;
-DECLARE
-v_name Employees.emp_name%TYPE;
-salary Employees.salary%TYPE;
-
+CREATE PROCEDURE demo_cursors()
 BEGIN
-SELECT emp_name, salary
+    DECLARE v_roll INT;
+    DECLARE v_name VARCHAR(50);
+    DECLARE v_marks INT;
+    DECLARE done BOOLEAN DEFAULT FALSE;
 
-INTO v name, v salary
+    DECLARE student_cur CURSOR FOR
+        SELECT roll_no, name, marks FROM student;
 
-FROM Employees
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
 
-WHERE emp_id=1;
+    UPDATE student SET marks = marks + 1 WHERE roll_no = 2;
+    SELECT ROW_COUNT() AS Rows_Updated;
 
-DBMS_OUTPUT.PUT_LINE('Implicit Cursor->'||v_name || 'earns' || v_salary);
-END;//
+    SET done = FALSE;
+    OPEN student_cur;
 
--- B) EXPLICIT CURSOR
+    read_loop: LOOP
+        FETCH student_cur INTO v_roll, v_name, v_marks;
+        IF done THEN LEAVE read_loop; END IF;
 
-DECLARE
-CURSOR emp cursor IS
-SELECT emp id, emp name, salary FROM Employees;
-vid Employees.emp_id%TYPE;
-v_name Employees.emp_name%TYPE;
-v_salary Employees salary TYPE;
+        SELECT CONCAT('Student: ', v_roll, ' - ', v_name, ' - ', v_marks) AS Student_Details;
+    END LOOP;
 
-BEGIN
-OPEN emp cursor,
-LOOP
-FETCH emp cursor INTO vid, v name, v salary,
-EXIT WHEN emp_cursor NOTFOUND;
-DBMS_OUTPUT.PUT_LINE('Explicit Cursor ID: v_id', Name:" || v_name ]", Salary;
-v_salary);
-END LOOP;
-CLOSE emp cursor;
-END;
+    CLOSE student_cur;
 
--- C) PARAMETERIZED CURSOR
+    -- Inner block
+    BEGIN
+        DECLARE done2 BOOLEAN DEFAULT FALSE;
+        DECLARE v_name2 VARCHAR(50);
+        DECLARE v_marks2 INT;
 
-DECLARE
-CURSOR emp_by_dept(p_dept NUMBER) IS
-SELECT emp_name, salary
-FROM Employees
-WHERE dept_id=p_dept;
-v_name Employees.emp_name%TYPE;
-v_salary Employees.salary%TYPE;
+        DECLARE high_scorers CURSOR FOR
+            SELECT name, marks FROM student WHERE marks > 80;
 
-BEGIN
-open emp_by_dept(20);
-loop 
-fetch emp_by_dept into v_name, v_salary;
-exit when emp_by_dept%NOTFOUND;
-DBMS_OUTPUT.PUT_LINE('Parameterised cursor (dept = 20)->'|| v_name || 'salary'|| v_salary);
-end loop;
-close emp_by_dept;
-end;
-/
+        DECLARE CONTINUE HANDLER FOR NOT FOUND SET done2 = TRUE;
 
--- d : cursor fro loop 
-begin
-for rec in (select emp_id,emp_name, salary from employees) loop
-DBMS_OUTPUT.PUT_LINE('for loop cursor ID: '|| rec.emp_id||', '|| rec.emp_name|| ', salary:' || rec.salary);
-end loop; 
-end;
-/
+        OPEN high_scorers;
 
+        high_loop: LOOP
+            FETCH high_scorers INTO v_name2, v_marks2;
+            IF done2 THEN LEAVE high_loop; END IF;
+
+            SELECT CONCAT(v_name2, ' scored ', v_marks2) AS High_Scorer;
+        END LOOP;
+
+        CLOSE high_scorers;
+    END;
+END $$
+
+DELIMITER ;
+
+CALL demo_cursors();
